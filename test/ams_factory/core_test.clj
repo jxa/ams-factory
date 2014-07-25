@@ -63,4 +63,23 @@
                    (sideload [creator some-guy] :collaborators)
                    (sideload [(sideload author-task [some-guy] :assignee)])
                    :users
+                   set))))
+
+      (testing "sideload-one merge"
+        (is (= #{{:father-id 3, :name "Chris", :id 9}
+                 {:name "Steve", :id 3}}
+               (-> (sideload-one primary-model
+                                 (sideload-one some-guy creator :father))
+                   :users
                    set)))))))
+
+(deftest test-sideload-one
+  (let [primary-model (->payload :paper
+                               {:id 2
+                                :title "On the Origin of Species"})
+        user (->payload :user {:id 5
+                               :name "Chris"})]
+    (is (= 5 (-> (sideload-one primary-model user)
+              :paper :user-id )))
+    (is (= {:id 5 :name "Chris"}
+           (first (:users (sideload-one primary-model user)))))))
