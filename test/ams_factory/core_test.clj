@@ -7,7 +7,7 @@
     (testing "payload"
       (is (= model (extract-model (->payload :thing model)))))))
 
-(deftest test-sideload
+(deftest test-sideload-many
   (let [primary-model (->payload :paper
                                {:id 2
                                 :title "On the Origin of Species"})
@@ -17,16 +17,16 @@
 
     (testing "including the associated collection in the root"
       (is (= [author-task]
-             (:tasks (sideload primary-model [(->payload :task author-task)])))))
+             (:tasks (sideload-many primary-model [(->payload :task author-task)])))))
 
     (testing "including the ids in the primary model"
       (is (= [5]
-             (-> (sideload primary-model [(->payload :task author-task)])
+             (-> (sideload-many primary-model [(->payload :task author-task)])
                  :paper
                  :task-ids))))
 
     (testing "overriding the association name"
-      (let [payload (sideload primary-model [(->payload :task author-task)] :todos)]
+      (let [payload (sideload-many primary-model [(->payload :task author-task)] :todos)]
         (is (= [5]
                (-> payload
                    :paper
@@ -52,16 +52,16 @@
                                :name "Steve"})]
       (is (= #{(extract-model creator) (extract-model some-guy)}
              (-> primary-model
-                 (sideload [creator] :collaborators)
-                 (sideload [(sideload author-task [some-guy] :assignee)])
+                 (sideload-many [creator] :collaborators)
+                 (sideload-many [(sideload-many author-task [some-guy] :assignee)])
                  :users
                  set)))
 
       (testing "uniqueness of merged payloads"
         (is (= #{(extract-model creator) (extract-model some-guy)}
                (-> primary-model
-                   (sideload [creator some-guy] :collaborators)
-                   (sideload [(sideload author-task [some-guy] :assignee)])
+                   (sideload-many [creator some-guy] :collaborators)
+                   (sideload-many [(sideload-many author-task [some-guy] :assignee)])
                    :users
                    set))))
 

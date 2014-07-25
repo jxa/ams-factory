@@ -67,23 +67,30 @@
           payload
           models))
 
+;; users: [] <--- users is the collection-key
+;; user_ids: [] <--- user_ids is the foreign-key
 (defn sideload
+  [payload collection-key foreign-key foreign-val collection]
+  (let [model-name (payload-root payload)
+        associated-models (map extract-model collection)]
+    (-> payload
+        (assoc-in [model-name foreign-key] foreign-val)
+        (merge-sideload collection-key associated-models)
+        (merge-sideloaded-models collection))))
+
+(defn sideload-many
   "Include model-collection in payload in the manner of side-loading"
   ([payload model-collection]
-     (sideload payload model-collection (model-collection-name model-collection)))
+     (sideload-many payload model-collection (model-collection-name model-collection)))
 
   ([payload model-collection association-name]
-     (let [model-name (payload-root payload)
-           associated-models (map extract-model model-collection)
-           associated-model-name (model-collection-name model-collection)
-           associated-model-key (keyword (pluralize associated-model-name))
-           existing-associated-models (get payload associated-model-key [])
-           key-name (keyword (str (singularize association-name) "-ids"))]
-       (-> payload
-           (assoc-in [model-name key-name]
-                     (map :id associated-models))
-           (merge-sideload associated-model-key associated-models)
-           (merge-sideloaded-models model-collection)))))
+     (sideload
+      payload
+      (keyword (pluralize (model-collection-name model-collection)))
+      (keyword (str (singularize association-name) "-ids"))
+      (map (comp :id extract-model) model-collection)
+      model-collection)))
+
 
 (defn sideload-one
   "TODO: ensure payload and model are PAYLOADs"
@@ -91,14 +98,12 @@
      (sideload-one payload model (payload-root model)))
 
   ([payload model association-name]
-     (let [model-name (payload-root payload)
-           key-name (keyword (str (singularize association-name) "-id"))]
-       (-> payload
-           (assoc-in [model-name key-name]
-                     (:id (extract-model model)))
-           (merge-sideload (keyword (pluralize (payload-root model)))
-                           [(extract-model model)])
-           (merge-sideloads (sideloaded-models model))))))
+     (sideload
+      payload
+      (keyword (pluralize (payload-root model)))
+      (keyword (str (singularize association-name) "-id"))
+      (:id (extract-model model))
+      [model])))
 
 (comment
  (def primary-model (->payload :paper
@@ -118,11 +123,11 @@
                          {:id 3
                           :name "Steve"}))
 
- (sideload primary-model [creator])
+ (sideload-many primary-model [creator])
  (sideload-one primary-model creator)
  (sideload-one primary-model
                (sideload-one some-guy creator :father))
 
  (-> primary-model
-      (sideload [creator] :collaborators)
-      (sideload [(sideload author-task [some-guy] :assignee)])))
+      (sideload-many [creator] :collaborators)
+      (sideload-many [(sideload-many author-task [some-guy] :assignee)])))
